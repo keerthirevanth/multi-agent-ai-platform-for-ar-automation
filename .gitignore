@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+
+# Generated runtime data (base-case seed CSVs ARE committed; the built DB is not)
+data/*.db
+data/*.sqlite
+data/outbox/
+
+# Trained model binaries (regenerate: python -m ar_platform.ml.benchmark).
+# The metadata JSON and reports/ ARE committed.
+models/*.joblib
+
+# Test / tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local Claude Code settings (personal permission allowlist; launch.json is kept)
+.claude/settings.local.json

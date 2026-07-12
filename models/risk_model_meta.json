@@ -1,0 +1,40 @@
+{
+  "trained_at": "2026-07-06T15:54:45",
+  "as_of": "2026-01-15",
+  "winner": "logistic_regression",
+  "winner_calibrated": false,
+  "cv_auc": 0.7892,
+  "test_auc": 0.7912,
+  "test_pr_auc": 0.6718,
+  "test_brier_raw": 0.1302,
+  "test_brier_calibrated": 0.1316,
+  "test_top20_capture": 0.6378,
+  "best_params": {
+    "clf__l1_ratio": 0.9,
+    "clf__C": 0.0529831690628371
+  },
+  "n_train": 2636,
+  "n_test": 1130,
+  "split_date": "2025-07-16",
+  "feature_names": [
+    "amount",
+    "payment_terms_days",
+    "credit_limit",
+    "n_prior_invoices",
+    "prior_late_mean",
+    "prior_late_shrunk",
+    "prior_late_std",
+    "prior_late_max",
+    "prior_ontime_ratio",
+    "prior_settled_ratio",
+    "open_exposure",
+    "credit_utilization",
+    "n_open_overdue",
+    "days_since_last_payment",
+    "amount_vs_avg",
+    "has_history",
+    "seg_enterprise",
+    "seg_midmarket",
+    "seg_smb"
+  ]
+}

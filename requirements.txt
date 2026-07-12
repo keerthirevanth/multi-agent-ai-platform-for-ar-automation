@@ -1,0 +1,27 @@
+# Core
+faker==30.8.2          # synthetic customer/invoice data
+python-dateutil==2.9.0 # date math for aging / ticks
+
+# Database (MySQL 8 via SQLAlchemy)
+SQLAlchemy==2.0.36
+PyMySQL==1.1.1
+cryptography==43.0.3   # required by PyMySQL for caching_sha2_password auth
+
+# ML (risk scoring + model benchmark)
+scikit-learn==1.5.2
+pandas==2.2.3
+numpy==2.1.3
+xgboost==3.2.0
+lightgbm==4.6.0
+joblib==1.4.2
+
+# Dashboard (Layer 4)
+streamlit==1.40.1
+plotly==5.24.1
+
+# Real LLM backend (optional; rules engine is the default)
+anthropic==0.39.0
+
+# Dev / test
+pytest==8.3.3
+ruff==0.7.4

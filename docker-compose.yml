@@ -1,0 +1,37 @@
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpw}
+      MYSQL_DATABASE: ar_platform
+      MYSQL_USER: ar_user
+      MYSQL_PASSWORD: ${AR_DB_PASSWORD:-ar_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      # Creates the separate test database on first boot.
+      - ./docs/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-rootpw}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  dashboard:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    environment:
+      AR_DB_URL: mysql+pymysql://ar_user:${AR_DB_PASSWORD:-ar_password}@db:3306/ar_platform
+      AR_LLM_MODE: ${AR_LLM_MODE:-rules}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AR_SEED: ${AR_SEED:-42}
+    volumes:
+      - ./data:/app/data
+
+volumes:
+  db_data:

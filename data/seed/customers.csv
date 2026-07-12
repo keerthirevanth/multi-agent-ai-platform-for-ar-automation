@@ -1,0 +1,151 @@
+id,name,segment,email,credit_limit,payment_terms_days,historical_delay_avg,risk_band
+CUST-0001,"Rodriguez, Figueroa and Sanchez",smb,ar@doyle.net,27000.0,30,1.2,low
+CUST-0002,Garza Inc,enterprise,ar@davis.net,808000.0,60,0.4,low
+CUST-0003,"Johnson, Gonzalez and Santos",midmarket,ar@barnes.com,115000.0,45,1.2,low
+CUST-0004,Wolfe LLC,smb,ar@moore-bernard.com,55000.0,30,14.7,medium
+CUST-0005,Davis Inc,smb,ar@abbott-munoz.com,47000.0,30,1.4,low
+CUST-0006,"Stevens, Martinez and Nielsen",smb,ar@arnold.org,20000.0,30,15.5,medium
+CUST-0007,Ray-Bush,midmarket,ar@stanley.com,146000.0,45,0.5,low
+CUST-0008,Delacruz Group,midmarket,ar@chavez-flowers.com,148000.0,45,3.0,low
+CUST-0009,Kelly-Santiago,smb,ar@zuniga.com,44000.0,30,6.9,medium
+CUST-0010,"Daniel, Martin and Gray",smb,ar@watts.com,28000.0,30,4.1,low
+CUST-0011,Underwood LLC,smb,ar@adams-clark.org,46000.0,30,26.7,high
+CUST-0012,"Edwards, Rios and Foster",enterprise,ar@ellis.net,546000.0,60,19.8,medium
+CUST-0013,"Baker, Richards and Hurst",smb,ar@cox-osborn.com,34000.0,30,29.7,high
+CUST-0014,"Snyder, Campos and Callahan",smb,ar@burton.biz,33000.0,30,1.8,low
+CUST-0015,"Brown, James and Ferrell",smb,ar@king.com,53000.0,30,14.7,medium
+CUST-0016,"Dyer, Potter and Mack",smb,ar@rodriguez-graham.info,56000.0,30,1.2,low
+CUST-0017,Mckay Ltd,midmarket,ar@stanton-gill.net,223000.0,45,3.4,low
+CUST-0018,Harrell LLC,midmarket,ar@romero.com,74000.0,45,1.1,low
+CUST-0019,"Ashley, Nielsen and Sellers",enterprise,ar@nguyen.com,524000.0,60,0.3,low
+CUST-0020,Brown PLC,smb,ar@miller.com,55000.0,30,9.7,medium
+CUST-0021,"Cannon, Anderson and Alvarez",smb,ar@martin.com,51000.0,30,2.3,low
+CUST-0022,"Campos, Vaughn and Marquez",midmarket,ar@carney-santos.info,203000.0,45,2.7,low
+CUST-0023,"Hayes, Wright and Brown",smb,ar@chapman.org,47000.0,30,2.0,low
+CUST-0024,Smith Ltd,midmarket,ar@brown.com,190000.0,45,37.3,high
+CUST-0025,Palmer LLC,smb,ar@washington.org,19000.0,30,42.0,high
+CUST-0026,"Kennedy, Mueller and Aguirre",smb,ar@davis.biz,14000.0,30,1.9,low
+CUST-0027,Henderson-Owens,smb,ar@brown.com,26000.0,30,4.9,low
+CUST-0028,Chandler-Mcbride,smb,ar@wright.net,56000.0,30,0.6,low
+CUST-0029,Taylor-White,smb,ar@wright-leblanc.info,59000.0,30,14.6,medium
+CUST-0030,"Garcia, Pearson and Fernandez",enterprise,ar@novak.com,714000.0,60,0.0,low
+CUST-0031,Tucker-Lewis,smb,ar@barrera-martin.com,42000.0,30,16.4,medium
+CUST-0032,Baker-Bowers,smb,ar@mitchell-horton.net,50000.0,30,1.5,low
+CUST-0033,"Higgins, Moore and Phillips",smb,ar@riley.com,19000.0,30,10.6,medium
+CUST-0034,"Edwards, Williams and Woods",midmarket,ar@moore.com,195000.0,45,52.1,high
+CUST-0035,Larson Ltd,smb,ar@powell.com,17000.0,30,4.6,low
+CUST-0036,"Wheeler, Harvey and Barnes",smb,ar@cunningham.com,29000.0,30,8.6,medium
+CUST-0037,Baker and Sons,midmarket,ar@brewer.com,80000.0,45,6.3,medium
+CUST-0038,Ellis PLC,midmarket,ar@jones.net,196000.0,45,3.8,low
+CUST-0039,Anderson-Bailey,enterprise,ar@suarez.com,812000.0,60,0.8,low
+CUST-0040,Kim PLC,smb,ar@turner.net,23000.0,30,18.9,medium
+CUST-0041,Contreras PLC,smb,ar@huynh-garcia.com,55000.0,30,9.7,medium
+CUST-0042,Wilson-Rodriguez,smb,ar@moore.com,38000.0,30,18.5,medium
+CUST-0043,Watts LLC,midmarket,ar@freeman.com,76000.0,45,1.7,low
+CUST-0044,"Henderson, Hill and Smith",smb,ar@walsh.com,24000.0,30,0.0,low
+CUST-0045,"Ramos, Thornton and Hoffman",smb,ar@jones.com,14000.0,30,4.5,low
+CUST-0046,"Johnson, Wood and Tran",smb,ar@anderson-parker.com,25000.0,30,1.4,low
+CUST-0047,Clark-Wright,midmarket,ar@gomez.biz,245000.0,45,19.0,medium
+CUST-0048,"Brady, Frost and Young",smb,ar@cherry.biz,60000.0,30,2.4,low
+CUST-0049,White LLC,midmarket,ar@pham-shields.com,228000.0,45,2.2,low
+CUST-0050,Moore-Haynes,midmarket,ar@brennan-garrison.com,246000.0,45,0.3,low
+CUST-0051,Velasquez Group,smb,ar@torres-pope.com,13000.0,30,11.0,medium
+CUST-0052,Johnson and Sons,midmarket,ar@murphy-lin.com,123000.0,45,26.7,high
+CUST-0053,May-Ross,smb,ar@rivera.com,21000.0,30,1.4,low
+CUST-0054,Carpenter LLC,midmarket,ar@rodriguez.com,173000.0,45,48.3,high
+CUST-0055,"Hartman, Graham and Joyce",smb,ar@cruz.com,51000.0,30,5.0,low
+CUST-0056,Williams-Graham,smb,ar@frost.com,58000.0,30,49.7,high
+CUST-0057,Reynolds-Rush,midmarket,ar@hanson-alvarado.com,114000.0,45,4.3,low
+CUST-0058,"Mccullough, Hunter and Estrada",smb,ar@powell-phillips.com,10000.0,30,4.9,low
+CUST-0059,Fisher Group,midmarket,ar@adkins.biz,176000.0,45,9.3,medium
+CUST-0060,"Bass, Torres and Clark",smb,ar@lawson.com,60000.0,30,13.3,medium
+CUST-0061,"Kennedy, Santana and Flynn",smb,ar@hopkins.net,28000.0,30,1.1,low
+CUST-0062,"Schultz, Rogers and Cardenas",enterprise,ar@chambers.com,312000.0,60,16.2,medium
+CUST-0063,Johnson and Sons,enterprise,ar@carr-mack.info,764000.0,60,18.8,medium
+CUST-0064,Mercado-Johnston,smb,ar@horton.com,42000.0,30,0.4,low
+CUST-0065,Osborne and Sons,midmarket,ar@brock.net,232000.0,45,17.9,medium
+CUST-0066,Williams-Wright,midmarket,ar@bryant.net,205000.0,45,28.6,high
+CUST-0067,"Larson, Dodson and Vance",smb,ar@briggs.net,36000.0,30,14.9,medium
+CUST-0068,Merritt-Manning,smb,ar@cole-walton.com,26000.0,30,1.0,low
+CUST-0069,"Washington, Allen and Gonzales",smb,ar@mitchell.net,35000.0,30,0.7,low
+CUST-0070,Taylor and Sons,smb,ar@benson-mccarthy.com,58000.0,30,4.7,low
+CUST-0071,Russell-Daniels,enterprise,ar@brown-wall.biz,826000.0,60,19.9,medium
+CUST-0072,"Shah, Smith and Gilmore",enterprise,ar@james.biz,521000.0,60,0.7,low
+CUST-0073,Medina-Navarro,midmarket,ar@hurst.info,122000.0,45,1.8,low
+CUST-0074,Price Ltd,midmarket,ar@yates.com,240000.0,45,9.5,medium
+CUST-0075,"Ferguson, Meadows and Vargas",smb,ar@johnson.info,43000.0,30,5.1,medium
+CUST-0076,Williams Group,smb,ar@lewis-murphy.biz,52000.0,30,0.5,low
+CUST-0077,Walton-Decker,smb,ar@conley-ruiz.net,16000.0,30,3.7,low
+CUST-0078,Cooke LLC,midmarket,ar@santos.com,113000.0,45,3.6,low
+CUST-0079,Herring and Sons,midmarket,ar@howell.com,127000.0,45,12.6,medium
+CUST-0080,Caldwell-Elliott,midmarket,ar@marshall.com,73000.0,45,23.2,high
+CUST-0081,Obrien Ltd,midmarket,ar@wilson.com,60000.0,45,1.7,low
+CUST-0082,"Johnson, Collins and Byrd",enterprise,ar@sanders-espinoza.com,415000.0,60,45.9,high
+CUST-0083,"Vaughn, Burton and Garcia",smb,ar@jefferson-burke.com,10000.0,30,0.6,low
+CUST-0084,"Patton, Reed and Patterson",smb,ar@jones-holland.com,19000.0,30,13.2,medium
+CUST-0085,Short-Garcia,smb,ar@reid-poole.com,19000.0,30,11.4,medium
+CUST-0086,Thompson-Boyd,enterprise,ar@nelson.info,290000.0,60,4.5,low
+CUST-0087,Graham-Simon,midmarket,ar@morris-sanchez.com,86000.0,45,1.8,low
+CUST-0088,Keith-Sanchez,smb,ar@hudson-barnett.com,49000.0,30,46.2,high
+CUST-0089,Snyder LLC,smb,ar@freeman.com,20000.0,30,4.9,low
+CUST-0090,Ramirez-Carlson,smb,ar@peters-black.com,11000.0,30,26.3,high
+CUST-0091,Allen Group,smb,ar@peters-allen.info,36000.0,30,17.0,medium
+CUST-0092,"Joseph, West and Smith",smb,ar@walker-holt.com,27000.0,30,7.4,medium
+CUST-0093,"Perkins, Kennedy and Schmidt",smb,ar@barajas-pierce.com,12000.0,30,4.3,low
+CUST-0094,"Chavez, Parker and Hall",midmarket,ar@lee.com,177000.0,45,10.2,medium
+CUST-0095,Robinson Group,smb,ar@hardy-bray.net,24000.0,30,20.8,high
+CUST-0096,"Campbell, Garcia and Lee",midmarket,ar@ward.com,77000.0,45,4.8,low
+CUST-0097,"Ferguson, Hill and Mccann",midmarket,ar@carter.info,162000.0,45,15.2,medium
+CUST-0098,Salas PLC,smb,ar@harrison-alexander.com,11000.0,30,0.6,low
+CUST-0099,King Group,smb,ar@short.info,26000.0,30,0.2,low
+CUST-0100,Ray Ltd,smb,ar@hernandez.com,60000.0,30,1.6,low
+CUST-0101,Mcknight Inc,smb,ar@duran.com,34000.0,30,18.5,medium
+CUST-0102,"James, Kerr and Evans",midmarket,ar@branch.org,171000.0,45,0.0,low
+CUST-0103,"Garcia, Farmer and Garrett",smb,ar@guerrero-moore.com,56000.0,30,19.1,medium
+CUST-0104,"Jones, Smith and Hayes",smb,ar@harrison.com,37000.0,30,0.3,low
+CUST-0105,"Heath, Jones and Hall",smb,ar@french-weber.com,30000.0,30,3.3,low
+CUST-0106,Wilson-Walker,enterprise,ar@kerr.com,769000.0,60,30.8,high
+CUST-0107,Martin LLC,midmarket,ar@curry.com,135000.0,45,2.8,low
+CUST-0108,Barker-Lyons,midmarket,ar@mason-snyder.com,157000.0,45,15.2,medium
+CUST-0109,"Williams, Reynolds and Morris",smb,ar@johnson-perez.org,29000.0,30,11.1,medium
+CUST-0110,"Sampson, Key and Chambers",smb,ar@johnston-hines.com,23000.0,30,2.1,low
+CUST-0111,Stone-Ramos,smb,ar@white-richards.info,39000.0,30,11.6,medium
+CUST-0112,Harrison Group,smb,ar@morris-garcia.com,60000.0,30,18.5,medium
+CUST-0113,Jenkins-Simpson,smb,ar@landry.info,15000.0,30,1.4,low
+CUST-0114,Edwards LLC,smb,ar@cordova.net,15000.0,30,17.3,medium
+CUST-0115,Sandoval PLC,smb,ar@gutierrez-lopez.com,24000.0,30,17.1,medium
+CUST-0116,"Avila, Garrett and Wolf",enterprise,ar@adams.com,736000.0,60,3.1,low
+CUST-0117,Gilmore-Washington,smb,ar@dudley.com,50000.0,30,2.9,low
+CUST-0118,"Moore, Pierce and Tran",smb,ar@walker.info,35000.0,30,1.2,low
+CUST-0119,Holland and Sons,smb,ar@cantu-carter.com,58000.0,30,4.3,low
+CUST-0120,Davenport-Baird,smb,ar@bryant.biz,24000.0,30,7.6,medium
+CUST-0121,Weeks PLC,smb,ar@suarez.biz,13000.0,30,13.4,medium
+CUST-0122,Villa-Romero,smb,ar@campbell.org,18000.0,30,4.0,low
+CUST-0123,"Duarte, Burns and Hernandez",smb,ar@washington.biz,48000.0,30,31.1,high
+CUST-0124,Cantu-Kane,smb,ar@allen.biz,56000.0,30,4.5,low
+CUST-0125,Flores Group,midmarket,ar@mcintyre.com,174000.0,45,51.4,high
+CUST-0126,Hanna-Martinez,smb,ar@rivera.com,26000.0,30,3.8,low
+CUST-0127,"Lozano, Smith and Thomas",smb,ar@booker.com,59000.0,30,2.6,low
+CUST-0128,Hanson-Sanders,smb,ar@christian.net,14000.0,30,3.6,low
+CUST-0129,Finley-Sims,midmarket,ar@brennan-johnson.com,198000.0,45,0.4,low
+CUST-0130,Welch LLC,midmarket,ar@francis.com,99000.0,45,3.5,low
+CUST-0131,"Padilla, Garcia and Jackson",enterprise,ar@berger-williams.com,805000.0,60,2.3,low
+CUST-0132,Howard-Jordan,enterprise,ar@schmidt.com,648000.0,60,18.6,medium
+CUST-0133,Thompson PLC,smb,ar@harvey-allen.org,58000.0,30,13.6,medium
+CUST-0134,Hall Ltd,midmarket,ar@stevens-estrada.info,136000.0,45,46.4,high
+CUST-0135,Byrd-Moore,smb,ar@landry-huerta.com,36000.0,30,38.8,high
+CUST-0136,"Hayden, Vaughn and Bryant",smb,ar@gonzalez-cruz.info,24000.0,30,12.3,medium
+CUST-0137,Young PLC,midmarket,ar@andrews-haney.com,159000.0,45,1.7,low
+CUST-0138,Spence Ltd,smb,ar@hill-knight.com,20000.0,30,4.2,low
+CUST-0139,"Mcgee, Wall and Leach",smb,ar@lawson.com,44000.0,30,20.9,high
+CUST-0140,"Lee, King and Campos",midmarket,ar@becker.com,66000.0,45,6.3,medium
+CUST-0141,Kramer-Johnson,midmarket,ar@oconnor-davis.com,106000.0,45,21.8,high
+CUST-0142,Burgess-Thompson,midmarket,ar@buchanan.net,143000.0,45,1.7,low
+CUST-0143,"Mcintyre, Rivas and Scott",smb,ar@coffey-phillips.com,36000.0,30,1.3,low
+CUST-0144,Mcdonald Inc,enterprise,ar@webster.biz,802000.0,60,0.3,low
+CUST-0145,"Diaz, Gibbs and Smith",smb,ar@martinez.com,14000.0,30,3.9,low
+CUST-0146,"James, Little and Watson",smb,ar@hall.net,25000.0,30,8.0,medium
+CUST-0147,Herman-Walker,enterprise,ar@reid.com,379000.0,60,2.4,low
+CUST-0148,"Ortiz, Taylor and Shah",enterprise,ar@ferrell-wilson.com,726000.0,60,44.5,high
+CUST-0149,"Taylor, Chavez and Santiago",smb,ar@horton.com,48000.0,30,4.8,low
+CUST-0150,Pena-Bass,smb,ar@russell.com,20000.0,30,19.5,medium

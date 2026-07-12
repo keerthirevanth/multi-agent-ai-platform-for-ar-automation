@@ -1,0 +1,9 @@
+model,cv_auc,test_auc,test_pr_auc,test_brier,test_top20_capture,best_params
+baseline_majority,0.5,0.5,0.2354,0.1801,0.2645,{}
+baseline_prior_lateness_rule,nan,0.8,0.6544,nan,0.6157,{}
+logistic_regression,0.7892,0.7912,0.6718,0.1302,0.6378,"{""clf__l1_ratio"": 0.9, ""clf__C"": 0.0529831690628371}"
+decision_tree,0.7521,0.7913,0.5548,0.1804,0.5744,"{""min_samples_leaf"": 20, ""max_depth"": 4, ""class_weight"": ""balanced""}"
+random_forest,0.7732,0.7962,0.6435,0.1629,0.6064,"{""n_estimators"": 400, ""min_samples_leaf"": 10, ""max_features"": ""sqrt"", ""max_depth"": 6, ""class_weight"": ""balanced""}"
+hist_gradient_boosting,0.7863,0.7961,0.6427,0.1283,0.6279,"{""min_samples_leaf"": 10, ""max_leaf_nodes"": 63, ""max_depth"": 2, ""learning_rate"": 0.03, ""l2_regularization"": 0.0}"
+xgboost,0.7793,0.7936,0.6641,0.1287,0.5832,"{""subsample"": 1.0, ""reg_lambda"": 1.0, ""n_estimators"": 100, ""max_depth"": 2, ""learning_rate"": 0.06, ""colsample_bytree"": 1.0}"
+lightgbm,0.7596,0.8014,0.6635,0.1293,0.5635,"{""subsample"": 1.0, ""reg_lambda"": 3.0, ""num_leaves"": 7, ""n_estimators"": 200, ""min_child_samples"": 10, ""learning_rate"": 0.03}"

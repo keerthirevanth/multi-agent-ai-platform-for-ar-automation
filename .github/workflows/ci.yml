@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpw
+          MYSQL_DATABASE: ar_platform
+          MYSQL_USER: ar_user
+          MYSQL_PASSWORD: ar_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -prootpw"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+    env:
+      AR_DB_URL: mysql+pymysql://ar_user:ar_password@127.0.0.1:3306/ar_platform
+      AR_TEST_DB_URL: mysql+pymysql://ar_user:ar_password@127.0.0.1:3306/ar_platform_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create test database
+        run: |
+          mysql -h 127.0.0.1 -uroot -prootpw -e \
+            "CREATE DATABASE IF NOT EXISTS ar_platform_test;
+             GRANT ALL PRIVILEGES ON ar_platform_test.* TO 'ar_user'@'%';
+             FLUSH PRIVILEGES;"
+
+      - name: Lint
+        run: ruff check src tests
+
+      - name: Regenerate base case (must match committed seed)
+        run: |
+          PYTHONPATH=src python -m ar_platform.data.generator
+          git diff --exit-code data/seed || (echo "Seed CSVs are stale — regenerate and commit." && exit 1)
+
+      - name: Validate data integrity
+        run: PYTHONPATH=src python -m ar_platform.data.validate
+
+      - name: Run tests
+        run: PYTHONPATH=src pytest -q
