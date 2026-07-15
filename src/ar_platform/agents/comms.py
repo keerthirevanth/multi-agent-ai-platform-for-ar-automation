@@ -1,12 +1,13 @@
-"""Comms agent — the acting end of the pipeline.
+"""Comms agent — the acting end of the dunning pipeline.
 
 For each prioritized invoice it either:
 
 * **Escalates** to a human-approval queue when the case is high-stakes (large
   expected loss or a 'final notice' severity) — the human-in-the-loop guardrail;
-  or
-* **Auto-sends** a collection email whose tone matches the severity, drafted by
-  the configured LLM backend (rules templates by default, Claude if enabled).
+* **Auto-sends** a collection email whose tone matches the severity — worded by
+  the deterministic templates by default, or drafted by Claude when an LLM
+  backend is configured (the LLM affects wording only, never the decision); or
+* For **pre-due** invoices: one risk-gated proactive nudge, never escalated.
 
 Every action is recorded through the ERP tool and the audit log.
 """

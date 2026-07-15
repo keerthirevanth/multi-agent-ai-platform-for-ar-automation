@@ -22,14 +22,19 @@ from sqlalchemy import Engine, create_engine, text
 from ar_platform.config import SEED_DIR, settings
 from ar_platform.models import (
     AuditEntry,
+    CreditHold,
     Customer,
     CustomerReply,
+    Dispute,
+    DisputeStatus,
     Escalation,
     EscalationStatus,
     Invoice,
     Payment,
     PromiseStatus,
     PromiseToPay,
+    Remittance,
+    RemittanceStatus,
 )
 
 # MySQL DDL. VARCHAR lengths are required for keys/indexes; money is DECIMAL,
@@ -120,6 +125,44 @@ _DDL = [
     ) ENGINE=InnoDB
     """,
     """
+    CREATE TABLE IF NOT EXISTS remittances (
+        id VARCHAR(24) PRIMARY KEY,
+        date DATE NOT NULL,
+        payer_name VARCHAR(255) NOT NULL,
+        amount DECIMAL(16,2) NOT NULL,
+        reference_text VARCHAR(255) NOT NULL,
+        customer_id VARCHAR(20) NOT NULL,
+        intended_invoice_id VARCHAR(20) NOT NULL,
+        status VARCHAR(12) NOT NULL DEFAULT 'unmatched',
+        matched_invoice_id VARCHAR(20) NULL,
+        match_method VARCHAR(20) NULL,
+        INDEX idx_rem_status (status)
+    ) ENGINE=InnoDB
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS disputes (
+        id VARCHAR(24) PRIMARY KEY,
+        invoice_id VARCHAR(20) NOT NULL,
+        customer_id VARCHAR(20) NOT NULL,
+        opened_date DATE NOT NULL,
+        reason_category VARCHAR(20) NOT NULL,
+        reason_text VARCHAR(1024) NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'open',
+        resolved_date DATE NULL,
+        resolution_note VARCHAR(255) NULL,
+        INDEX idx_disp_status (status),
+        INDEX idx_disp_invoice (invoice_id)
+    ) ENGINE=InnoDB
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS credit_holds (
+        customer_id VARCHAR(20) PRIMARY KEY,
+        held_date DATE NOT NULL,
+        utilization_at_hold DOUBLE NOT NULL,
+        released_date DATE NULL
+    ) ENGINE=InnoDB
+    """,
+    """
     CREATE TABLE IF NOT EXISTS audit_log (
         id VARCHAR(40) PRIMARY KEY,
         timestamp VARCHAR(32) NOT NULL,
@@ -199,7 +242,8 @@ class Store:
             conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
             for table in (
                 "payments", "invoices", "customers", "escalations",
-                "customer_replies", "promises", "audit_log",
+                "customer_replies", "promises", "remittances", "disputes",
+                "credit_holds", "audit_log",
             ):
                 conn.execute(text(f"DELETE FROM {table}"))
             conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
@@ -236,19 +280,19 @@ class Store:
         return Customer.from_row(rows[0]) if rows else None
 
     def get_customers(self) -> list[Customer]:
-        return [Customer.from_row(r) for r in self._query("SELECT * FROM customers")]
+        return [Customer.from_row(r) for r in self._query("SELECT * FROM customers ORDER BY id")]
 
     # -- invoices ----------------------------------------------------------
     def upsert_invoice(self, inv: Invoice) -> None:
         self._exec(_INSERT_INVOICE, inv.to_row())
 
     def get_invoices(self) -> list[Invoice]:
-        return [Invoice.from_row(r) for r in self._query("SELECT * FROM invoices")]
+        return [Invoice.from_row(r) for r in self._query("SELECT * FROM invoices ORDER BY id")]
 
     def get_open_invoices(self) -> list[Invoice]:
         return [
             Invoice.from_row(r)
-            for r in self._query("SELECT * FROM invoices WHERE status != 'paid'")
+            for r in self._query("SELECT * FROM invoices WHERE status != 'paid' ORDER BY id")
         ]
 
     def update_invoice_due_date(self, invoice_id: str, new_due: str) -> None:
@@ -263,7 +307,7 @@ class Store:
         self._exec(_INSERT_PAYMENT_IGNORE, p.to_row())
 
     def get_payments(self) -> list[Payment]:
-        return [Payment.from_row(r) for r in self._query("SELECT * FROM payments")]
+        return [Payment.from_row(r) for r in self._query("SELECT * FROM payments ORDER BY id")]
 
     # -- sequences / lookups ----------------------------------------------
     def next_seq(self, table: str, prefix: str) -> int:
@@ -288,10 +332,10 @@ class Store:
 
     def get_escalations(self, status: EscalationStatus | None = None) -> list[Escalation]:
         if status is None:
-            rows = self._query("SELECT * FROM escalations")
+            rows = self._query("SELECT * FROM escalations ORDER BY id")
         else:
             rows = self._query(
-                "SELECT * FROM escalations WHERE status = :s", {"s": status.value}
+                "SELECT * FROM escalations WHERE status = :s ORDER BY id", {"s": status.value}
             )
         return [Escalation.from_row(r) for r in rows]
 
@@ -318,10 +362,10 @@ class Store:
         self._exec(_INSERT_REPLY, r.to_row())
 
     def get_new_replies(self) -> list[CustomerReply]:
-        return [
-            CustomerReply.from_row(row)
-            for row in self._query("SELECT * FROM customer_replies WHERE status = 'new'")
-        ]
+        rows = self._query(
+            "SELECT * FROM customer_replies WHERE status = 'new' ORDER BY id"
+        )
+        return [CustomerReply.from_row(row) for row in rows]
 
     def get_replies(self, invoice_id: str | None = None) -> list[CustomerReply]:
         if invoice_id is None:
@@ -353,10 +397,10 @@ class Store:
 
     def get_promises(self, status: PromiseStatus | None = None) -> list[PromiseToPay]:
         if status is None:
-            rows = self._query("SELECT * FROM promises")
+            rows = self._query("SELECT * FROM promises ORDER BY id")
         else:
             rows = self._query(
-                "SELECT * FROM promises WHERE status = :s", {"s": status.value}
+                "SELECT * FROM promises WHERE status = :s ORDER BY id", {"s": status.value}
             )
         return [PromiseToPay.from_row(r) for r in rows]
 
@@ -379,6 +423,109 @@ class Store:
         self._exec(
             "UPDATE promises SET status = :s WHERE id = :id",
             {"s": status.value, "id": promise_id},
+        )
+
+    # -- remittances (cash application) --------------------------------------
+    def add_remittance(self, r: Remittance) -> None:
+        self._exec(_INSERT_REMITTANCE, r.to_row())
+
+    def get_remittances(self, status: RemittanceStatus | None = None) -> list[Remittance]:
+        if status is None:
+            rows = self._query("SELECT * FROM remittances ORDER BY id")
+        else:
+            rows = self._query(
+                "SELECT * FROM remittances WHERE status = :s ORDER BY id", {"s": status.value}
+            )
+        return [Remittance.from_row(r) for r in rows]
+
+    def update_remittance(
+        self, rem_id: str, status: RemittanceStatus,
+        matched_invoice_id: str | None = None, match_method: str = "",
+    ) -> None:
+        self._exec(
+            """UPDATE remittances SET status = :s, matched_invoice_id = :inv,
+               match_method = :m WHERE id = :id""",
+            {"s": status.value, "inv": matched_invoice_id, "m": match_method,
+             "id": rem_id},
+        )
+
+    def invoices_with_pending_remittance(self) -> set[str]:
+        """Invoices the customer has already paid for, cash not yet applied.
+
+        Used by the world model: a customer who has sent a remittance will not
+        pay the same invoice again, even though our books still show it open.
+        """
+        rows = self._query(
+            "SELECT DISTINCT intended_invoice_id AS iid FROM remittances "
+            "WHERE status != 'matched'"
+        )
+        return {r["iid"] for r in rows}
+
+    def get_remittance(self, rem_id: str) -> Remittance | None:
+        rows = self._query(
+            "SELECT * FROM remittances WHERE id = :id", {"id": rem_id}
+        )
+        return Remittance.from_row(rows[0]) if rows else None
+
+    def cash_applied_since(self, start_date: str) -> float:
+        """Total payments applied to the ledger after a date (excl. credit memos)."""
+        rows = self._query(
+            "SELECT COALESCE(SUM(amount), 0) AS total FROM payments "
+            "WHERE date > :d AND method != 'credit_memo'",
+            {"d": start_date},
+        )
+        return float(rows[0]["total"])
+
+    def unapplied_cash(self) -> float:
+        rows = self._query(
+            "SELECT COALESCE(SUM(amount), 0) AS total FROM remittances "
+            "WHERE status != 'matched'"
+        )
+        return float(rows[0]["total"])
+
+    # -- disputes ------------------------------------------------------------
+    def add_dispute(self, d: Dispute) -> None:
+        self._exec(_INSERT_DISPUTE, d.to_row())
+
+    def get_disputes(self, status: DisputeStatus | None = None) -> list[Dispute]:
+        if status is None:
+            rows = self._query("SELECT * FROM disputes ORDER BY id")
+        else:
+            rows = self._query(
+                "SELECT * FROM disputes WHERE status = :s ORDER BY id", {"s": status.value}
+            )
+        return [Dispute.from_row(r) for r in rows]
+
+    def get_open_dispute(self, invoice_id: str) -> Dispute | None:
+        rows = self._query(
+            "SELECT * FROM disputes WHERE invoice_id = :i AND status = 'open' LIMIT 1",
+            {"i": invoice_id},
+        )
+        return Dispute.from_row(rows[0]) if rows else None
+
+    def resolve_dispute(
+        self, dispute_id: str, status: DisputeStatus, resolved_date: str, note: str
+    ) -> None:
+        self._exec(
+            """UPDATE disputes SET status = :s, resolved_date = :d,
+               resolution_note = :n WHERE id = :id""",
+            {"s": status.value, "d": resolved_date, "n": note, "id": dispute_id},
+        )
+
+    # -- credit holds ----------------------------------------------------------
+    def add_credit_hold(self, h: CreditHold) -> None:
+        self._exec(_INSERT_HOLD, h.to_row())
+
+    def active_credit_holds(self) -> list[CreditHold]:
+        rows = self._query(
+            "SELECT * FROM credit_holds WHERE released_date IS NULL ORDER BY customer_id"
+        )
+        return [CreditHold.from_row(r) for r in rows]
+
+    def release_credit_hold(self, customer_id: str, released_date: str) -> None:
+        self._exec(
+            "UPDATE credit_holds SET released_date = :d WHERE customer_id = :c",
+            {"d": released_date, "c": customer_id},
         )
 
     # -- audit -------------------------------------------------------------
@@ -469,4 +616,29 @@ _INSERT_PROMISE = """
 INSERT IGNORE INTO promises
     (id, invoice_id, customer_id, created_date, amount, due_date, status)
 VALUES (:id, :invoice_id, :customer_id, :created_date, :amount, :due_date, :status)
+"""
+
+_INSERT_REMITTANCE = """
+INSERT IGNORE INTO remittances
+    (id, date, payer_name, amount, reference_text, customer_id,
+     intended_invoice_id, status, matched_invoice_id, match_method)
+VALUES (:id, :date, :payer_name, :amount, :reference_text, :customer_id,
+        :intended_invoice_id, :status, :matched_invoice_id, :match_method)
+"""
+
+_INSERT_DISPUTE = """
+INSERT IGNORE INTO disputes
+    (id, invoice_id, customer_id, opened_date, reason_category, reason_text,
+     status, resolved_date, resolution_note)
+VALUES (:id, :invoice_id, :customer_id, :opened_date, :reason_category,
+        :reason_text, :status, :resolved_date, :resolution_note)
+"""
+
+_INSERT_HOLD = """
+INSERT INTO credit_holds (customer_id, held_date, utilization_at_hold, released_date)
+VALUES (:customer_id, :held_date, :utilization_at_hold, :released_date)
+ON DUPLICATE KEY UPDATE
+    held_date=VALUES(held_date),
+    utilization_at_hold=VALUES(utilization_at_hold),
+    released_date=VALUES(released_date)
 """

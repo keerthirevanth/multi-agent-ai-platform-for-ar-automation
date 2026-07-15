@@ -62,10 +62,10 @@ def test_summarize_pairs_by_seed():
     from ar_platform.experiments.uplift import ArmResult
 
     rows = [
-        ArmResult(1, "off", 2, 7, 100.0, 80.0, 40.0, 30.0, 20.0, 0, 0),
-        ArmResult(1, "on", 2, 7, 100.0, 70.0, 30.0, 25.0, 32.0, 5, 1),
-        ArmResult(2, "off", 2, 7, 100.0, 82.0, 42.0, 31.0, 18.0, 0, 0),
-        ArmResult(2, "on", 2, 7, 100.0, 71.0, 33.0, 26.0, 30.0, 6, 2),
+        ArmResult(1, "off", 2, 7, 100.0, 80.0, 40.0, 30.0, 20.0, 9.0, 0, 0),
+        ArmResult(1, "on", 2, 7, 100.0, 70.0, 30.0, 25.0, 32.0, 1.0, 5, 1),
+        ArmResult(2, "off", 2, 7, 100.0, 82.0, 42.0, 31.0, 18.0, 8.0, 0, 0),
+        ArmResult(2, "on", 2, 7, 100.0, 71.0, 33.0, 26.0, 30.0, 2.0, 6, 2),
     ]
     s = summarize(rows)
     assert s["collected"]["mean"] == 12.0

@@ -14,6 +14,9 @@ from dataclasses import dataclass, field
 
 from ar_platform.agents import CommsAgent, MonitorAgent, RiskAgent
 from ar_platform.agents.base import AgentContext, WorkItem
+from ar_platform.agents.cash_app import CashAppAgent
+from ar_platform.agents.credit import CreditAgent
+from ar_platform.agents.dispute import DisputeAgent
 from ar_platform.agents.inbox import InboxAgent
 from ar_platform.agents.negotiator import NegotiatorAgent
 from ar_platform.models import (
@@ -35,6 +38,10 @@ class CycleReport:
     disputes: int = 0
     promises_kept: int = 0
     promises_broken: int = 0
+    cash_matched: int = 0
+    cash_suspense: int = 0
+    credit_holds_new: int = 0
+    credit_holds_released: int = 0
     agent_summaries: list[str] = field(default_factory=list)
     top_items: list[WorkItem] = field(default_factory=list)
 
@@ -49,12 +56,18 @@ class Orchestrator:
         comms: CommsAgent | None = None,
         inbox: InboxAgent | None = None,
         negotiator: NegotiatorAgent | None = None,
+        cash_app: CashAppAgent | None = None,
+        dispute: DisputeAgent | None = None,
+        credit: CreditAgent | None = None,
     ):
         self.monitor = monitor or MonitorAgent()
         self.risk = risk or RiskAgent()
         self.comms = comms or CommsAgent()
         self.inbox = inbox or InboxAgent()
         self.negotiator = negotiator or NegotiatorAgent()
+        self.cash_app = cash_app or CashAppAgent()
+        self.dispute = dispute or DisputeAgent()
+        self.credit = credit or CreditAgent()
 
     # -- inbound: classify + route customer replies ------------------------
     def _process_replies(self, ctx: AgentContext, report: CycleReport) -> None:
@@ -71,8 +84,7 @@ class Orchestrator:
                 action = self.negotiator.handle(ctx, inv, cust, classification)
                 report.negotiated += 1
             elif intent == "dispute":
-                inv.status = InvoiceStatus.DISPUTED
-                ctx.store.upsert_invoice(inv)
+                self.dispute.open_case(ctx, inv, cust, reply.text)
                 self._escalate(ctx, reply.invoice_id, reply.customer_id,
                                inv.outstanding, "dispute", "customer disputed invoice")
                 report.disputes += 1
@@ -150,6 +162,15 @@ class Orchestrator:
     def run_cycle(self, ctx: AgentContext) -> CycleReport:
         report = CycleReport()
 
+        # -1. Cash application first: match incoming remittances so freshly
+        #     paid invoices drop out before anyone considers chasing them.
+        cash = self.cash_app.run(ctx)
+        report.cash_matched = cash.matched
+        report.cash_suspense = cash.to_suspense
+        report.agent_summaries.append(
+            f"cash_app: matched {cash.matched}, suspense {cash.to_suspense}"
+        )
+
         # 0. Inbound conversation: classify + route replies, then reconcile
         #    promises from earlier cycles. Both run before dunning so we don't
         #    chase invoices we've just agreed terms on or disputed.
@@ -159,6 +180,11 @@ class Orchestrator:
             f"inbox: handled {report.replies_handled} replies "
             f"({report.negotiated} negotiated, {report.disputes} disputes)"
         )
+
+        # 0.5 Credit management: exposure check -> holds / releases.
+        held, released = self.credit.run(ctx)
+        report.credit_holds_new = held
+        report.credit_holds_released = released
 
         # 1. Perceive: Monitor flags overdue invoices.
         monitor_res = self.monitor.run(ctx)
@@ -220,6 +246,57 @@ def resolve_escalation(
     ctx.store.update_escalation(
         esc.id, status, ctx.sim_date.isoformat(), note
     )
+
+    # Suspense-cash cases: approving means the human worked out where the
+    # money belongs (the world's ground truth stands in for that research)
+    # and applies it; rejecting leaves it in suspense (e.g. refund pending).
+    if esc.severity == "cash_app":
+        if approve:
+            rem = ctx.store.get_remittance(esc.invoice_id)  # esc holds the REM id
+            if rem is not None and rem.status.value != "matched":
+                from ar_platform.models import Payment, RemittanceStatus
+
+                inv = next(
+                    (i for i in ctx.store.get_open_invoices()
+                     if i.id == rem.intended_invoice_id),
+                    None,
+                )
+                if inv is not None:
+                    ctx.erp.apply_payment(
+                        inv,
+                        Payment(
+                            id=f"PAY-H{esc.id[-6:]}",
+                            invoice_id=inv.id,
+                            amount=min(rem.amount, inv.outstanding),
+                            date=ctx.sim_date,
+                            method="remittance",
+                        ),
+                    )
+                    ctx.store.update_remittance(
+                        rem.id, RemittanceStatus.MATCHED, inv.id, "human"
+                    )
+        ctx.audit(
+            "human", "resolved_escalation", "escalation", esc.id,
+            detail=f"suspense cash {'applied' if approve else 'held'}: {note}",
+        )
+        ctx.store.commit()
+        return status.value
+
+    # Dispute cases: approve = customer's claim upheld (credit memo),
+    # reject = claim denied (dunning resumes). Handled by the dispute module.
+    if esc.severity == "dispute":
+        from ar_platform.agents.dispute import resolve_dispute_case
+
+        dispute = ctx.store.get_open_dispute(esc.invoice_id)
+        if dispute is not None:
+            resolve_dispute_case(ctx, dispute, valid=approve, note=note)
+        ctx.audit(
+            "human", "resolved_escalation", "escalation", esc.id,
+            detail=f"dispute {'upheld' if approve else 'denied'}: {note}",
+        )
+        ctx.store.commit()
+        return status.value
+
     if approve:
         cust = ctx.store.get_customer(esc.customer_id)
         inv = next(

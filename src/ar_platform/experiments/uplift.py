@@ -44,7 +44,8 @@ class ArmResult:
     end_open_ar: float
     end_overdue_ar: float
     end_dso: float
-    collected: float
+    collected: float            # cash APPLIED to the ledger during the window
+    unapplied_cash: float       # remittances received but never applied
     emails_sent: int
     escalations: int
 
@@ -72,6 +73,7 @@ def run_arm(
     start_open_ar = round(
         sum(i.outstanding for i in store.get_open_invoices()), 2
     )
+    start_date = sim.sim_date.isoformat()
 
     reports = sim.run(ticks=ticks, days_per_tick=days_per_tick)
 
@@ -87,7 +89,11 @@ def run_arm(
         end_open_ar=reports[-1].open_ar,
         end_overdue_ar=kpis.overdue_ar,
         end_dso=kpis.dso,
-        collected=round(sum(r.payments_amount for r in reports), 2),
+        # Measured from the payments ledger so agent- and human-applied cash
+        # (cash application, suspense approvals) count too — tick sums only
+        # see world-step applications.
+        collected=round(store.cash_applied_since(start_date), 2),
+        unapplied_cash=round(store.unapplied_cash(), 2),
         emails_sent=len(sim.email.sent),
         escalations=len(store.get_escalations()),
     )
@@ -135,13 +141,17 @@ def summarize(results: list[ArmResult]) -> dict:
     for r in results:
         by_seed.setdefault(r.seed, {})[r.agents] = r
 
-    deltas = {"collected": [], "end_open_ar": [], "end_dso": [], "end_overdue_ar": []}
+    deltas = {
+        "collected": [], "end_open_ar": [], "end_dso": [],
+        "end_overdue_ar": [], "unapplied_cash": [],
+    }
     for arms in by_seed.values():
         on, off = arms["on"], arms["off"]
         deltas["collected"].append(on.collected - off.collected)
         deltas["end_open_ar"].append(on.end_open_ar - off.end_open_ar)
         deltas["end_dso"].append(on.end_dso - off.end_dso)
         deltas["end_overdue_ar"].append(on.end_overdue_ar - off.end_overdue_ar)
+        deltas["unapplied_cash"].append(on.unapplied_cash - off.unapplied_cash)
 
     def agg(xs):
         return {
@@ -165,14 +175,15 @@ def main() -> None:
 
     header = (
         f"{'seed':>5s} {'arm':>4s} {'collected$':>13s} {'end openAR$':>13s} "
-        f"{'end DSO':>8s} {'emails':>7s} {'esc':>5s}"
+        f"{'end DSO':>8s} {'unapplied$':>12s} {'emails':>7s} {'esc':>5s}"
     )
     print(header)
     print("-" * len(header))
     for r in results:
         print(
             f"{r.seed:5d} {r.agents:>4s} {r.collected:13,.0f} {r.end_open_ar:13,.0f} "
-            f"{r.end_dso:8.1f} {r.emails_sent:7d} {r.escalations:5d}"
+            f"{r.end_dso:8.1f} {r.unapplied_cash:12,.0f} "
+            f"{r.emails_sent:7d} {r.escalations:5d}"
         )
 
     s = summarize(results)
@@ -183,6 +194,10 @@ def main() -> None:
     print(
         f"  end overdue: {s['end_overdue_ar']['mean']:+,.0f} "
         f"+/- {s['end_overdue_ar']['std']:,.0f}"
+    )
+    print(
+        f"  unapplied:   {s['unapplied_cash']['mean']:+,.0f} "
+        f"+/- {s['unapplied_cash']['std']:,.0f}"
     )
     print(f"\nResults saved to {UPLIFT_CSV}")
 

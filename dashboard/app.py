@@ -26,8 +26,10 @@ from ar_platform.data.store import Store  # noqa: E402
 from ar_platform.kpis import compute_kpis  # noqa: E402
 from ar_platform.models import (  # noqa: E402
     AGING_BUCKETS,
+    DisputeStatus,
     EscalationStatus,
     PromiseStatus,
+    RemittanceStatus,
 )
 from ar_platform.simulation import Simulation  # noqa: E402
 
@@ -199,6 +201,62 @@ if replies:
         )
 else:
     st.info("Advance the clock — once dunning emails go out, customers reply.")
+
+st.divider()
+
+# --- Phase B: cash application · disputes · credit --------------------------
+st.subheader("Cash application, disputes & credit")
+rems = sim.store.get_remittances()
+n_matched = sum(1 for r in rems if r.status == RemittanceStatus.MATCHED)
+n_suspense = sum(1 for r in rems if r.status == RemittanceStatus.SUSPENSE)
+disputes_all = sim.store.get_disputes()
+open_disputes = [d for d in disputes_all if d.status == DisputeStatus.OPEN]
+holds = sim.store.active_credit_holds()
+
+b1, b2, b3, b4, b5 = st.columns(5)
+b1.metric("Remittances matched", n_matched)
+b2.metric("In suspense", n_suspense)
+b3.metric("Unapplied cash", f"${sim.store.unapplied_cash():,.0f}")
+b4.metric("Disputes (open/total)", f"{len(open_disputes)}/{len(disputes_all)}")
+b5.metric("Credit holds active", len(holds))
+
+if holds:
+    with st.expander(f"Customers on credit hold ({len(holds)})"):
+        hold_rows = []
+        for h in holds:
+            c = sim.store.get_customer(h.customer_id)
+            hold_rows.append(
+                {
+                    "customer": c.name if c else h.customer_id,
+                    "held since": h.held_date,
+                    "utilization at hold": f"{h.utilization_at_hold:.0%}",
+                }
+            )
+        st.dataframe(pd.DataFrame(hold_rows), use_container_width=True, hide_index=True)
+
+# --- cash forecast -----------------------------------------------------------
+st.subheader("Cash forecast (payment-date model)")
+if st.button("Compute 8-week expected-cash curve"):
+    from ar_platform.ml.forecast import expected_cash_curve, train_payment_forecaster
+
+    with st.spinner("Training payment-date model..."):
+        fc = train_payment_forecaster(
+            sim.store.get_customers(), sim.store.get_invoices(),
+            sim.store.get_payments(), as_of=sim.sim_date,
+        )
+        curve = expected_cash_curve(
+            fc, sim.store.get_customers(), sim.store.get_invoices(),
+            as_of=sim.sim_date, weeks=8, risk_model=sim.model,
+        )
+    st.session_state.cash_curve = (curve, fc.mae_holdout)
+
+if "cash_curve" in st.session_state:
+    curve, mae = st.session_state.cash_curve
+    st.caption(f"Payment-date model holdout MAE: {mae} days · risk-weighted amounts")
+    curve_df = pd.DataFrame(curve)
+    fig3 = px.bar(curve_df, x="week_start", y="expected_cash", text_auto=".2s")
+    fig3.update_layout(height=300, margin=dict(t=10, b=10))
+    st.plotly_chart(fig3, use_container_width=True)
 
 st.divider()
 

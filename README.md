@@ -1,13 +1,25 @@
 # Enterprise AI Accounts Receivable (AR) Automation Platform
 
-A production-grade, multi-agent platform that simulates a corporate finance
+A **production-style**, multi-agent platform that simulates a corporate finance
 department's accounts-receivable function. Specialized AI agents autonomously
 monitor invoices, assess payment risk, communicate with customers, and surface
-executive KPIs — demonstrating how **Agentic AI** can automate enterprise
-financial operations far beyond a traditional chatbot.
+executive KPIs — demonstrating how an **agentic architecture** can automate
+enterprise financial workflows, in a realistic *simulated* environment, far
+beyond a traditional chatbot.
 
-> **Status:** all four layers plus the agentic conversation loop (inbox +
-> negotiation) complete and tested (52 tests), backed by MySQL 8.
+> **Status:** full AR function — collections, agentic conversation loop, cash
+> application, disputes, credit management, cash forecasting — complete and
+> tested within the simulated environment (60 unit/integration tests), backed by
+> MySQL 8.
+
+> **Scope & honest framing.** This is a self-contained *simulation*, not a
+> deployed business system. The ledger is synthetic (no real ERP — chosen for
+> privacy and reproducible benchmarking), and every measured result below is
+> produced *inside* the simulation, against a deliberately unautomated control
+> arm. The rigor (temporal ML evaluation, seeded A/B experiments, deterministic
+> guardrails) is real; the magnitudes are only as valid as the simulation's
+> modelling assumptions. Read every number as "under this simulation's
+> assumptions," not as a claim about a live business.
 
 Run the agent pipeline once, or drive the full week-by-week simulation:
 
@@ -17,7 +29,8 @@ PYTHONPATH=src python -m ar_platform.run_simulation --ticks 8 --days 7 --reset
 ```
 
 Example: over 8 simulated weeks the agents drive open AR from ~$16.6M down to
-~$6.0M, collecting ~$13.1M while filing escalations for human approval.
+~$5.5M, applying ~$12.9M of cash while negotiating, resolving disputes, and
+filing escalations for human approval.
 
 ## Measured impact (A/B experiment, not a claim)
 
@@ -28,15 +41,20 @@ nobody chases) — paired across 3 replication seeds, 8 weeks each:
 
 | Metric (8 weeks, mean ± std across seeds) | Agents ON vs. OFF |
 | --- | --- |
-| Additional cash collected | **+$847K ± $313K** |
-| Ending open AR | **−$1.02M ± $0.63M** |
-| Ending DSO | **−9.3 ± 3.8 days** |
-| Ending overdue AR | −$1.05M ± $0.39M |
+| Additional cash applied to the ledger | **+$3.48M ± $1.16M** |
+| Ending DSO | **−39.1 ± 14.5 days** |
+| Ending open AR | −$4.26M ± $0.93M |
+| Cash stuck unapplied (suspense) | **−$3.35M ± $0.02M** |
+| Ending overdue AR | −$3.64M ± $1.12M |
 
-(The full agentic loop grants some negotiated extensions, which trades a little
-raw speed for handling disputes and converting would-be non-payers via tracked
-promises — so DSO uplift is marginally lower than pure dunning, but the system
-now covers the conversation a real AR team faces.)
+Scope note: the control arm is a **deliberately pessimistic baseline** — it has
+*no* automation beyond straight-through processing of clean-referenced
+remittances (no dunning, no negotiation, no cash-application matching, so its
+~$3.9M of messy remittances just sit unapplied). The uplift therefore measures
+the full platform against a genuinely *unautomated* back office, which is the
+honest comparison for "what does the automation add" but is generous by
+construction — a real business already does *some* of this manually. Roughly
+$3.35M of the gap is cash application alone; the rest is collections behavior.
 
 The ON arm wins on every metric in every seed. Reproduce it yourself:
 
@@ -103,6 +121,35 @@ stops), invoices under an agreed promise aren't chased, and broken promises
 re-escalate automatically. Runs deterministically for CI (keyword classifier +
 policy); `AR_LLM_MODE=claude` swaps in genuine language understanding and
 reasoning.
+
+### Full AR function (Phase B): cash application, disputes, credit, forecast
+
+Beyond collections, the platform now covers the rest of the order-to-cash
+back office the way real AR products do:
+
+- **Cash application** — customers no longer "pay invoices" directly; they send
+  **bank remittances** with noisy references (~70% carry a clean invoice id and
+  are straight-through processed; the rest arrive as "payment on account" from
+  "RODRIGUEZ FIGUEROA AND SANCHEZ"). The cash-app agent matches them in three
+  deterministic passes (invoice reference → fuzzy payer name + exact amount →
+  single open invoice), parks failures in **suspense**, and escalates large
+  unmatched amounts to a human. Match accuracy is measured against ground truth
+  the matcher never sees. Until cash is applied, the invoice wrongly looks
+  unpaid — automating this is real money (the control arm's "unapplied cash"
+  shows the cost of not having it).
+- **Dispute management** — dispute replies open a tracked case with a
+  categorized reason (delivery / billing error / quality). Dunning holds while
+  the case is open; a human verdict either upholds the claim (**credit memo**:
+  full credit for billing errors, partial for delivery/quality, remainder back
+  to collection) or denies it (customer gets an explanation email and dunning
+  resumes).
+- **Credit management** — every cycle the credit agent recomputes each
+  customer's utilization (open exposure / credit limit): above 90% → **credit
+  hold** (the world stops issuing them new invoices), below 70% → released.
+- **Cash forecast** — a payment-*date* regressor (same leakage-free features,
+  temporal-holdout MAE reported) predicts when each open invoice will pay;
+  binned weekly and weighted by collection probability it yields the
+  **8-week expected-cash curve** a treasurer plans against.
 
 ### Deterministic core, honestly labeled
 
@@ -273,8 +320,9 @@ src/ar_platform/
 │   └── store.py       # MySQL repository (SQLAlchemy); loads base case, evolves state
 ├── ml/
 │   ├── features.py    # leakage-free behavioral features (as-of-date)
-│   └── benchmark.py   # temporal-split model benchmark + tuning + calibration
-├── agents/            # Monitor, Risk, Comms, Inbox, Negotiator
+│   ├── benchmark.py   # temporal-split model benchmark + tuning + calibration
+│   └── forecast.py    # payment-date regression -> weekly expected-cash curve
+├── agents/            # Monitor, Risk, Comms, Inbox, Negotiator, CashApp, Dispute, Credit
 ├── dialogue.py        # reply classifier + NegotiationPolicy (deterministic guardrail)
 ├── tools/             # email sim, ERP writer, runtime risk scorer, templates
 ├── experiments/
@@ -288,6 +336,21 @@ models/                # trained model + metadata (binary gitignored)
 tests/                 # pytest suite
 ```
 
+## Performance & known limitations
+
+- **Throughput.** One simulation tick over the full ~4,500-invoice ledger takes
+  ~47s (all eight agents, cash-application, credit and forecast steps). The
+  bottleneck is deliberate: every write opens its own MySQL transaction for
+  clarity and auditability rather than batching. Fine for offline experiments;
+  the obvious optimization (per-tick transaction batching) is unimplemented.
+- **Synthetic data.** The ledger is generated, not sampled from a real ERP, so a
+  benchmark partly measures the generator's own rules. Validating the pipeline
+  on a public receivables dataset is the highest-value next step for external
+  credibility.
+- **Simulated dynamics.** Payment-response magnitudes (contact boost, promise
+  boost, reply/dispute rates) are modelling assumptions, not fitted to real
+  behavior — see the scope note at the top.
+
 ## Roadmap
 
 - [x] **Layer 1** — data models, synthetic generator, MySQL store, base case
@@ -300,8 +363,12 @@ tests/                 # pytest suite
 - [x] **Agentic layer** — simulated customer replies, inbox intent classification,
       negotiation agent (proposes within business-rule bounds), promise-to-pay
       tracking, case-based orchestration
-- [ ] Cash application (match incoming payments → invoices) + dispute workflow
-- [ ] Payment-date regression → week-by-week cash forecast
+- [x] **Cash application** — noisy remittance matching, suspense queue, accuracy
+      measured against hidden ground truth
+- [x] **Dispute workflow** — categorized cases, dunning hold, credit-memo
+      resolution via the human queue
+- [x] **Credit management** — utilization monitoring, automatic holds/releases
+- [x] **Cash forecast** — payment-date regression → weekly expected-cash curve
 - [ ] FastAPI service layer, config-driven rules, auth/roles (production hardening)
 - [ ] SHAP explanations attached to escalations
 

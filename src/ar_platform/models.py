@@ -250,6 +250,115 @@ class PromiseToPay:
         )
 
 
+class RemittanceStatus(StrEnum):
+    UNMATCHED = "unmatched"  # arrived, not yet applied to an invoice
+    MATCHED = "matched"      # applied to an invoice
+    SUSPENSE = "suspense"    # could not be matched automatically -> human
+
+
+@dataclass
+class Remittance:
+    """An incoming bank payment with (possibly noisy) reference information.
+
+    This is what cash application is about: the money has arrived, but which
+    invoice it belongs to must be worked out from the payer name, amount, and
+    whatever reference text the customer's bank included.
+    """
+
+    id: str
+    date: str
+    payer_name: str            # as it appears on the bank statement (noisy)
+    amount: float
+    reference_text: str        # free text; may or may not contain an invoice id
+    customer_id: str           # ground truth (world knows; matcher must not use)
+    intended_invoice_id: str   # ground truth for evaluation only
+    status: RemittanceStatus = RemittanceStatus.UNMATCHED
+    matched_invoice_id: str | None = None
+    match_method: str = ""     # reference | amount | single_open | (empty)
+
+    def to_row(self) -> dict:
+        d = self.__dict__.copy()
+        d["status"] = self.status.value
+        return d
+
+    @classmethod
+    def from_row(cls, row: dict) -> Remittance:
+        return cls(
+            id=row["id"],
+            date=_as_date_str(row["date"]),
+            payer_name=row["payer_name"],
+            amount=float(row["amount"]),
+            reference_text=row["reference_text"],
+            customer_id=row["customer_id"],
+            intended_invoice_id=row["intended_invoice_id"],
+            status=RemittanceStatus(row["status"]),
+            matched_invoice_id=row["matched_invoice_id"],
+            match_method=row["match_method"] or "",
+        )
+
+
+class DisputeStatus(StrEnum):
+    OPEN = "open"
+    RESOLVED_VALID = "resolved_valid"      # customer was right -> credit memo
+    RESOLVED_INVALID = "resolved_invalid"  # claim rejected -> dunning resumes
+
+
+@dataclass
+class Dispute:
+    """A formally tracked invoice dispute (opened from a customer reply)."""
+
+    id: str
+    invoice_id: str
+    customer_id: str
+    opened_date: str
+    reason_category: str       # delivery | billing_error | quality | unknown
+    reason_text: str
+    status: DisputeStatus = DisputeStatus.OPEN
+    resolved_date: str | None = None
+    resolution_note: str = ""
+
+    def to_row(self) -> dict:
+        d = self.__dict__.copy()
+        d["status"] = self.status.value
+        return d
+
+    @classmethod
+    def from_row(cls, row: dict) -> Dispute:
+        return cls(
+            id=row["id"],
+            invoice_id=row["invoice_id"],
+            customer_id=row["customer_id"],
+            opened_date=_as_date_str(row["opened_date"]),
+            reason_category=row["reason_category"],
+            reason_text=row["reason_text"],
+            status=DisputeStatus(row["status"]),
+            resolved_date=_as_date_str(row["resolved_date"]),
+            resolution_note=row["resolution_note"] or "",
+        )
+
+
+@dataclass
+class CreditHold:
+    """A customer temporarily blocked from new credit sales (over-exposed)."""
+
+    customer_id: str
+    held_date: str
+    utilization_at_hold: float
+    released_date: str | None = None
+
+    def to_row(self) -> dict:
+        return self.__dict__.copy()
+
+    @classmethod
+    def from_row(cls, row: dict) -> CreditHold:
+        return cls(
+            customer_id=row["customer_id"],
+            held_date=_as_date_str(row["held_date"]),
+            utilization_at_hold=float(row["utilization_at_hold"]),
+            released_date=_as_date_str(row["released_date"]),
+        )
+
+
 class EscalationStatus(StrEnum):
     PENDING = "pending"      # awaiting a human decision
     APPROVED = "approved"    # human authorized the collection action

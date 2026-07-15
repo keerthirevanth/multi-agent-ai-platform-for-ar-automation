@@ -22,7 +22,15 @@ from ar_platform.agents.base import AgentContext
 from ar_platform.config import settings
 from ar_platform.data.store import Store
 from ar_platform.llm import get_llm
-from ar_platform.models import Invoice, InvoiceStatus, Payment, PromiseStatus, RiskBand
+from ar_platform.models import (
+    Invoice,
+    InvoiceStatus,
+    Payment,
+    PromiseStatus,
+    Remittance,
+    RemittanceStatus,
+    RiskBand,
+)
 from ar_platform.orchestrator import CycleReport, Orchestrator, resolve_escalation
 from ar_platform.tools.email import EmailTool
 from ar_platform.tools.erp import ERPTool
@@ -37,6 +45,16 @@ _CONTACT_BOOST = 1.8
 _EARLY_PAY_DAILY = 0.008
 # Payment-likelihood multiplier once a customer has an agreed promise-to-pay.
 _PROMISE_BOOST = 2.2
+# Remittance reference quality: share arriving with a clean invoice reference
+# (straight-through processed). The rest need cash-application matching.
+_CLEAN_REF_RATE = 0.70
+# Of the messy remainder: mangled-but-present hints vs. bare name-only wires.
+_NAME_NOISE = [
+    lambda n: n,                                    # exact name
+    lambda n: n.upper(),                            # bank shouting case
+    lambda n: n.replace(",", "").replace(".", ""),  # punctuation stripped
+    lambda n: n.split(" and ")[0].split(",")[0],    # truncated legal name
+]
 # Expected new invoices issued per customer per 30 days.
 _NEW_INVOICE_RATE = 0.5
 
@@ -122,6 +140,52 @@ class Simulation:
                 self.store.upsert_invoice(inv)
         self.store.commit()
 
+    def _receive_cash(self, inv, cust, amount: float, rem_seq: int) -> float:
+        """A customer pays: cash arrives as a bank remittance.
+
+        ~70% carry a clean invoice reference and are straight-through processed
+        (applied immediately — a clerk or OCR handles these trivially, so both
+        experiment arms get them). The rest arrive with mangled or missing
+        references and sit unapplied until the cash-application agent matches
+        them. Returns the amount actually applied to the ledger now.
+        """
+        clean = self.rng.random() < _CLEAN_REF_RATE
+        if clean:
+            reference = f"payment for {inv.id}"
+            payer = cust.name
+        else:
+            payer = self.rng.choice(_NAME_NOISE)(cust.name)
+            reference = self.rng.choice([
+                f"inv {inv.id.split('-')[1].lstrip('0')}",   # unparseable hint
+                f"po {self.rng.randint(10000, 99999)}",       # wrong reference
+                "payment on account",
+                "",
+            ])
+        rem = Remittance(
+            id=f"REM-{rem_seq:06d}",
+            date=self.sim_date.isoformat(),
+            payer_name=payer,
+            amount=amount,
+            reference_text=reference,
+            customer_id=cust.id,
+            intended_invoice_id=inv.id,
+            status=RemittanceStatus.MATCHED if clean else RemittanceStatus.UNMATCHED,
+            matched_invoice_id=inv.id if clean else None,
+            match_method="reference" if clean else "",
+        )
+        self.store.add_remittance(rem)
+        if clean:
+            pay = Payment(
+                id=f"PAY-{rem_seq:06d}R",
+                invoice_id=inv.id,
+                amount=amount,
+                date=self.sim_date,
+                method="remittance",
+            )
+            self.erp.apply_payment(inv, pay)
+            return amount
+        return 0.0
+
     def _collect_payments(self, days: int) -> tuple[int, float]:
         contacted = self.store.contacted_invoice_ids()
         # Invoices under an agreed promise-to-pay: the customer committed, so
@@ -129,8 +193,11 @@ class Simulation:
         promised = {
             p.invoice_id for p in self.store.get_promises(PromiseStatus.PENDING)
         }
+        # Customers who already remitted (cash pending application) won't pay
+        # the same invoice twice, even though our books still show it open.
+        already_remitted = self.store.invoices_with_pending_remittance()
         customers = {c.id: c for c in self.store.get_customers()}
-        seq = self.store.next_seq("payments", "PAY")
+        seq = self.store.next_seq("remittances", "REM")
         count = 0
         total = 0.0
 
@@ -138,6 +205,8 @@ class Simulation:
             cust = customers.get(inv.customer_id)
             if cust is None or inv.status == InvoiceStatus.DISPUTED:
                 continue
+            if inv.id in already_remitted:
+                continue  # they've paid; the cash just isn't applied yet
 
             if inv.due_date >= self.sim_date and inv.status == InvoiceStatus.OPEN:
                 # Not yet due: occasional early settlement, meaningfully more
@@ -146,17 +215,9 @@ class Simulation:
                 if inv.id in contacted:
                     daily = min(0.95, daily * _CONTACT_BOOST)
                 if self.rng.random() < 1 - (1 - daily) ** days:
-                    pay = Payment(
-                        id=f"PAY-{seq:06d}",
-                        invoice_id=inv.id,
-                        amount=inv.outstanding,
-                        date=self.sim_date,
-                        method=self.rng.choice(["ACH", "wire", "credit_card", "check"]),
-                    )
-                    self.erp.apply_payment(inv, pay)
+                    total += self._receive_cash(inv, cust, inv.outstanding, seq)
                     seq += 1
                     count += 1
-                    total += pay.amount
                 continue
 
             daily = _DAILY_PAY_PROB[cust.risk_band]
@@ -174,22 +235,18 @@ class Simulation:
                 amount = round(inv.outstanding * self.rng.uniform(0.3, 0.7), 2)
             else:
                 amount = inv.outstanding
-            pay = Payment(
-                id=f"PAY-{seq:06d}",
-                invoice_id=inv.id,
-                amount=amount,
-                date=self.sim_date,
-                method=self.rng.choice(["ACH", "wire", "credit_card", "check"]),
-            )
-            self.erp.apply_payment(inv, pay)
+            total += self._receive_cash(inv, cust, amount, seq)
             seq += 1
             count += 1
-            total += amount
 
         return count, round(total, 2)
 
     def _issue_new_invoices(self, days: int) -> int:
-        customers = self.store.get_customers()
+        # Customers on credit hold get no new credit sales until released.
+        held = {h.customer_id for h in self.store.active_credit_holds()}
+        customers = [c for c in self.store.get_customers() if c.id not in held]
+        if not customers:
+            return 0
         seq = self.store.next_seq("invoices", "INV")
         expected = len(customers) * _NEW_INVOICE_RATE * (days / 30.0)
         # Poisson-ish count via a Gaussian approximation (std = sqrt(mean)).
@@ -253,7 +310,16 @@ class Simulation:
         from ar_platform.models import EscalationStatus
 
         approvals = rejections = 0
-        for esc in self.store.get_escalations(EscalationStatus.PENDING):
+        # Iterate in a content-deterministic order (invoice/case id), NOT by
+        # escalation id: escalation ids are random UUIDs, so id order would
+        # assign this loop's RNG draws to different cases run-to-run and break
+        # seeded reproducibility. At most one pending escalation exists per
+        # case id, so this key is unique.
+        pending = sorted(
+            self.store.get_escalations(EscalationStatus.PENDING),
+            key=lambda e: e.invoice_id,
+        )
+        for esc in pending:
             approve = self.rng.random() < self.auto_approve_rate
             resolve_escalation(
                 self._ctx(), esc, approve,

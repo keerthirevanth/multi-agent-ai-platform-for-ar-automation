@@ -2,8 +2,9 @@
 
 Imports of the ``anthropic`` SDK are deferred to construction time so the whole
 platform still runs deterministically even if the SDK or an API key is absent.
-Currently provides personalized email drafting; the agentic layer (reply
-understanding, negotiation within business-rule bounds) will extend this class.
+Provides the three reasoning capabilities of the agentic layer: personalized
+email drafting, free-text reply classification, and negotiation proposals —
+the last always re-validated by the deterministic ``NegotiationPolicy``.
 """
 
 from __future__ import annotations
