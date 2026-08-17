@@ -1,4 +1,4 @@
-# Enterprise AI Accounts Receivable (AR) Automation Platform
+# Multi-Agent AI Platform for Accounts-Receivable Automation
 
 A **production-style**, multi-agent platform that simulates a corporate finance
 department's accounts-receivable function. Specialized AI agents autonomously
